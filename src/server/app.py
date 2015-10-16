@@ -14,7 +14,7 @@ class MyServer(Flask):
             self.actvplrs=[]
             self.sid2usr={}
             self.chunks={}
-            self.spawnpoint=(0,0)
+            self.spawnpoint=(0,500)
             self.ltt=time.time()
             self.worldseed=random.randint(-1000000,1000000)
 
@@ -55,38 +55,38 @@ class Chunk:
                     self.blocks[-1].append(8820)
                 else:
                     self.blocks[-1].append(1)
+        
+        try:
+            if (Y > 3 and random.randint(1,3)==2):
+                size = random.randint(3,12)
+                todo = [(random.randint(4,12),random.randint(4,12))]
+                while size > 0 and len(todo) > 0:
+                    random.shuffle(todo)
+                    x,y = todo.pop()
+                    self.blocks[x][y] = 20
+                    size -= 1
+                    if x > 0  and self.blocks[x-1][y] == 1:
+                        todo.append((x-1,y))
+                    if y > 0  and self.blocks[x][y-1] == 1:
+                        todo.append((x,y-1))
+                    if x < 16 and self.blocks[x+1][y] == 1:
+                        todo.append((x+1,y))
+                    if y < 16 and self.blocks[x][y+1] == 1:
+                        todo.append((x,y+1))
+        except:
+            pass
     
     def __str__(self):
         s=""
         for y in range(16):
             for x in range(16):
                 if self.blocks[x][y] == 8820:
-                    #s+=b96(9200+
-                    #1*(not solid(16*self.x+x,16*self.y+y-1))+
-                    #2*(not solid(16*self.x+x,16*self.y+y+1))+
-                    #4*(not solid(16*self.x+x-1,16*self.y+y))+
-                    #8*(not solid(16*self.x+x+1,16*self.y+y)))
                     s+=b94(8820+
                       int(not blockAt(16*self.x+x,16*self.y+y-1,1)in solidblocks)+
                     2*int(not blockAt(16*self.x+x,16*self.y+y+1,1)in solidblocks)+
                     4*int(not blockAt(16*self.x+x-1,16*self.y+y,1)in solidblocks)+
                     8*int(not blockAt(16*self.x+x+1,16*self.y+y,1)in solidblocks))
-                    #j = 8200
-                    #print blockAt(16*self.x+x+1,16*self.y+y)in solidblocks
-                    #if not(blockAt(16*self.x+x,16*self.y+y-1)in solidblocks):
-                    #    j+=1
-                    #    print "found:", blockAt(16*self.x+x,16*self.y+y-1)
-                    #if not(blockAt(16*self.x+x,16*self.y+y+1)in solidblocks):
-                    #    j+=2
-                    #    #print "found:", blockAt(16*self.x+x,16*self.y+y+1)
-                    #if not(blockAt(16*self.x+x-1,16*self.y+y)in solidblocks):
-                    #    j+=4
-                    #    
-                    #if not(blockAt(16*self.x+x+1,16*self.y+y)in solidblocks):
-                    #    j+=8
-                    #
-                    #print j
-                    #s+=b94(j)
+                    
                 else:
                     s+=b94(self.blocks[x][y])
         return s
