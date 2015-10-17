@@ -1,10 +1,12 @@
 #! /usr/bin/env python
 
-import sys, urllib, os, json
+import sys, urllib, os, json, time
 
 NAME = "squaremesh"
 
-IP = "http://localhost:5000/"
+IP = "localhost:5000"
+
+mpos = (0,0)
 
 importerr=False
 
@@ -33,7 +35,7 @@ def b94(i):
 
 class Player:
     def __init__(self):
-        self.x=self.y=None
+        self.x=self.y=0
 
 class Chunk:
     def updateImg(self):
@@ -56,6 +58,9 @@ def image(path):
     else:
         IMAGES[path] = pygame.image.load(path).convert_alpha()
         return image(path)
+
+def inr(p,r):
+    return p[0]>r[0]and p[1]>r[1]and p[0]<r[0]+r[2]and p[1]<r[1]+r[3]
 
 def blockimg(i):
 
@@ -83,11 +88,17 @@ def loadifnot(x,y):
         loadedchunks[(x,y)]=Chunk(u.read())
         u.close()
 
-MENU = "connect"
+kbtxt = u""
 
-UNAME= sys.argv[1]
+selbox = 0;
+
+MENU = "login"
+
+UNAME= ""
 
 player=Player()
+
+font = pygame.font.Font(os.path.join("resources","fonts","Font.ttf"),20)
 
 keyopt = {
 'right':pygame.K_RIGHT,
@@ -107,10 +118,74 @@ while True:
             sys.exit(0)
         if event.type == pygame.VIDEORESIZE:
             screen = pygame.display.set_mode(event.dict["size"],pygame.RESIZABLE|pygame.HWSURFACE|pygame.DOUBLEBUF)
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE:
+                if len(kbtxt) > 0:
+                    kbtxt = kbtxt[:-1]
+            elif len(kbtxt) < 127:
+                kbtxt += event.unicode
+        if event.type == pygame.MOUSEMOTION:
+            mpos = event.pos
+        clicked = False
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            clicked = True
     
     keys = pygame.key.get_pressed();
     
+    if MENU == "login":
+        screen.fill((150,70,22))
+        screen.blit(font.render("Username:",False,(255,255,255)),(screen.get_width()/4-font.size("Username:")[0],
+        screen.get_height()/3))
+        pygame.draw.rect(screen,(0,0,0),(screen.get_width()/4,screen.get_height()/3-10,screen.get_width()/2,40))
+        screen.blit(font.render(UNAME+('','_')[selbox==1 and time.time() % 0.5 < 0.25],False,(255,255,255)),
+        (screen.get_width()/4+5,screen.get_height()/3))
+        
+        if clicked and inr(mpos,(screen.get_width()/4,screen.get_height()/3-10,screen.get_width()/2,40)):
+            selbox = 1
+            kbtxt = UNAME
+        
+        if selbox == 1:
+            UNAME = kbtxt
+            if len(UNAME) > 0 and UNAME[-1] == '\r':
+                UNAME=UNAME[:-1]
+                selbox = 0
+        
+        screen.blit(font.render("Server IP:",False,(255,255,255)),(screen.get_width()/4-font.size("Server IP:")[0],
+        2*screen.get_height()/3))
+        pygame.draw.rect(screen,(0,0,0),(screen.get_width()/4,2*screen.get_height()/3-10,screen.get_width()/2,40))
+        screen.blit(font.render(IP+('','_')[selbox==2 and time.time() % 0.5 < 0.25],False,(255,255,255)),
+        (screen.get_width()/4+5,2*screen.get_height()/3))
+        
+        if clicked and inr(mpos,(screen.get_width()/4,2*screen.get_height()/3-10,screen.get_width()/2,40)):
+            selbox = 2
+            kbtxt = IP
+        
+        if selbox == 2:
+            IP = kbtxt
+            if len(IP) > 0 and IP[-1] == '\r':
+                IP=IP[:-1]
+                selbox = 0
+        
+        pygame.draw.rect(screen,(100,100,100),(screen.get_width()/2-75,screen.get_height()*3/4,150,40))
+        screen.blit(font.render("Connect",False,(255,255,255)),(screen.get_width()/2-font.size("Connect")[0]/2,
+        screen.get_height()*3/4+10))
+        
+        if clicked and inr(mpos,(screen.get_width()/2-75,screen.get_height()*3/4,150,40)):
+            MENU = "connect"
+            continue
+        
+    
     if MENU == "connect":
+        if not (IP.startswith("http://") or IP.startswith("https://")):
+            IP = "http://" + IP
+        if IP[-1] != '/':
+            IP+='/'
+        u=urllib.urlopen(IP)
+        resp=u.read()
+        u.close()
+        if resp != "kzzzzzsh - This is a squaremesh server - kzzzzzsh":
+            MENU = "login"
+            continue
         u=urllib.urlopen(IP+"connect?un="+UNAME);
         resp=u.read()
         u.close()
@@ -122,6 +197,7 @@ while True:
             print(resp)
             sys.exit(-1)
         MENU="game"
+        continue
     
     if MENU == "game":
         skeys=""
@@ -133,11 +209,22 @@ while True:
             skeys+='-'
         if keys[keyopt['jump']]:
             skeys+='j'
-        u=urllib.urlopen(IP+"dat?sid="+SID+"&km="+skeys);
+        if pygame.mouse.get_pressed()[0]:
+            skeys+="1"
+        if pygame.mouse.get_pressed()[1]:
+            skeys+="2"
+        if pygame.mouse.get_pressed()[2]:
+            skeys+="3"
+        u=urllib.urlopen(IP+"dat?sid="+SID+"&km="+skeys+"&cur="+str(int((mpos[0]-screen.get_width()/2)/32+player.x))+"x"+
+        str(int((mpos[1]-screen.get_height()/2)/32+player.y)));
         resp=json.loads(u.read())
         u.close()
         player.x=resp['x']
         player.y=resp['y']
+        
+        for chunk in resp['dch']:
+            if tuple(chunk) in loadedchunks.keys():
+                del loadedchunks[tuple(chunk)]
         
         drawBG()
         
