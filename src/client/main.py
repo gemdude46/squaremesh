@@ -10,6 +10,8 @@ mpos = (0,0)
 
 importerr=False
 
+slot = 0
+
 try:
     import pygame
 except ImportError:
@@ -36,6 +38,7 @@ def b94(i):
 class Player:
     def __init__(self):
         self.x=self.y=0
+        self.inv=[]
 
 class Chunk:
     def updateImg(self):
@@ -62,7 +65,13 @@ def image(path):
 def inr(p,r):
     return p[0]>r[0]and p[1]>r[1]and p[0]<r[0]+r[2]and p[1]<r[1]+r[3]
 
-def blockimg(i):
+def blockimg(i,x=None):
+
+    if i == 11000:
+        img = pygame.Surface((32,32),pygame.SRCALPHA)
+        img.blit(image(os.path.join("resources","images","blocks","tools","handles",x['rod']+".png")),(0,0))
+        img.blit(image(os.path.join("resources","images","blocks","tools","pickblades",x['blade']+".png")),(0,0))
+        return img
 
     if i > 8819:
         img = blockimg(2).copy()
@@ -79,8 +88,8 @@ def blockimg(i):
             img.blit(pygame.transform.rotate(image(os.path.join("resources","images","blocks","grass.png")),-90),(32-5,0))
         return img
 
-    return image(os.path.join("resources","images","blocks","blocks_"+str(i//100)+"_"+str(i//100+99)+".png"))\
-    .subsurface((32*(i%10),32*(i//10),32,32))
+    return image(os.path.join("resources","images","blocks","blocks_"+str((i//100)*100)+"_"+str(99+100*(i//100))+".png"))\
+    .subsurface((32*(i%10),32*((i%100)//10),32,32))
 
 def loadifnot(x,y):
     if (x,y) not in loadedchunks.keys():
@@ -100,11 +109,23 @@ player=Player()
 
 font = pygame.font.Font(os.path.join("resources","fonts","Font.ttf"),20)
 
+smallfont = pygame.font.Font(os.path.join("resources","fonts","Font.ttf"),10)
+
 keyopt = {
-'right':pygame.K_RIGHT,
-'left' :pygame.K_LEFT,
-'run'  :pygame.K_z,
-'jump' :pygame.K_UP
+'right' :pygame.K_RIGHT,
+'left'  :pygame.K_LEFT,
+'run'   :pygame.K_z,
+'jump'  :pygame.K_UP,
+'s1'    :pygame.K_1,
+'s2'    :pygame.K_2,
+'s3'    :pygame.K_3,
+'s4'    :pygame.K_4,
+'s5'    :pygame.K_5,
+'s6'    :pygame.K_6,
+'s7'    :pygame.K_7,
+'s8'    :pygame.K_8,
+'s9'    :pygame.K_9,
+'s10'    :pygame.K_0,
 }
 
 def drawBG():
@@ -115,6 +136,8 @@ loadedchunks = {}
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            if MENU == "game":
+                urllib.urlopen(IP+"quit?sid="+SID).close()
             sys.exit(0)
         if event.type == pygame.VIDEORESIZE:
             screen = pygame.display.set_mode(event.dict["size"],pygame.RESIZABLE|pygame.HWSURFACE|pygame.DOUBLEBUF)
@@ -209,18 +232,26 @@ while True:
             skeys+='-'
         if keys[keyopt['jump']]:
             skeys+='j'
+        for i in range(1,11):
+            if keys[keyopt['s'+str(i)]]:
+                skeys+=chr(64+i)
         if pygame.mouse.get_pressed()[0]:
             skeys+="1"
         if pygame.mouse.get_pressed()[1]:
             skeys+="2"
         if pygame.mouse.get_pressed()[2]:
             skeys+="3"
-        u=urllib.urlopen(IP+"dat?sid="+SID+"&km="+skeys+"&cur="+str(int((mpos[0]-screen.get_width()/2)/32+player.x))+"x"+
-        str(int((mpos[1]-screen.get_height()/2)/32+player.y)));
+        u=urllib.urlopen(IP+"dat?sid="+SID+"&km="+skeys+"&cur="+
+        str(int(mpos[0]-screen.get_width()/2+player.x*32)/32)
+        +"x"+
+        str(int(mpos[1]-screen.get_height()/2+player.y*32)/32)
+        )
         resp=json.loads(u.read())
         u.close()
         player.x=resp['x']
         player.y=resp['y']
+        player.inv=resp['inv']
+        slot=resp['slot']
         
         for chunk in resp['dch']:
             if tuple(chunk) in loadedchunks.keys():
@@ -251,6 +282,17 @@ while True:
         screen.blit(image(os.path.join("resources","images","player",('',"flipped_")[resp['f']]+"player.gif")),
         (screen.get_width()/2-16,screen.get_height()/2-32))
         
+        pygame.draw.arc(screen,(200,200,200,200),(mpos[0]-16,mpos[1]-16,32,32),
+        -1.57079632679,resp['a']*6.28318530718-1.57079632679,10)
+        
+        pygame.draw.rect(screen,(180,180,180),(screen.get_width()/2-200,screen.get_height()-40,400,40))
+        for i in range(10):
+            pygame.draw.rect(screen,(40,40,40),(screen.get_width()/2-198+i*40,screen.get_height()-38,36,36))
+            if i < len(player.inv):
+                screen.blit(blockimg(player.inv[i][0],player.inv[i][2]),
+                (screen.get_width()/2-196+i*40, screen.get_height()-36))
+            if i == slot:
+                pygame.draw.rect(screen,(255,255,255),(screen.get_width()/2-198+i*40,screen.get_height()-45,36,5))
         
     
     pygame.display.flip()
