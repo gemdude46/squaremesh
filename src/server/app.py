@@ -19,7 +19,7 @@ class MyServer(Flask):
             self.spawnpoint=(0,0)
             self.ltt=time.time()
             self.worldseed=random.randint(-1000000,1000000)
-            
+            self.entities=[]
             
             print("Server started")
             print("Word seed is: {}".format(self.worldseed))
