@@ -28,6 +28,28 @@ app = MyServer(__name__)
 
 solidblocks = (1,2,8820,-1,20,21,22,23)
 
+class Biome:
+    def __init__(self,smallTrees=0,bigTrees=0,flowers=0):
+        self.smallTrees = smallTrees
+        self.bigTrees = bigTrees
+        self.flowers = flowers
+
+FOREST = Biome(20,20,20)
+PLAINS = Biome(2,1,12)
+WASTELANDS = Biome()
+JUNGLE = Biome(10,35,200)
+biomes = \
+(FOREST,)*6+ \
+(PLAINS,)*8+ \
+(WASTELANDS,)*2+ \
+(JUNGLE,)*3
+
+def biome(x):
+    random.seed(app.worldseed*((x//16)+0.5))
+    b=random.choice(biomes)
+    random.seed()
+    return b
+
 def blockAt(x,y,gen=False):
     if (x//16,y//16) in app.chunks.keys():
         return app.chunks[(x//16,y//16)].blocks[x%16][y%16]
@@ -64,11 +86,29 @@ def btime(blk,itm,plr=None):
     
         
     if blk in (2, 8820): return 10
+    if blk in (30,31,32,33): return 0.4
     return 1000000000
 
 def geti(l,i,d):
     try: return l[i]
     except: return d
+
+class Entity:
+    def __init__(self,x,y,args=(),append=True):
+        self.x=x
+        self.y=y
+        self.die=False
+        self.setup(*args)
+        if append: app.entities.append(self)
+
+    def tick(self,rt): pass
+    def setup(self): pass
+
+class SmallTree(Entity):
+    def tick(self,rt):
+        h=random.randint(6,9)
+        for i in range(h): setBlock(self.x,self.y-i,10)
+        self.die=True
 
 class Chunk:
     def __init__(self,X,Y):
@@ -81,10 +121,14 @@ class Chunk:
         for x in range(16):
             self.blocks.append([])
             for y in range(16):
-                n = noise.pnoise2((x+16*self.x)/20.,app.worldseed+0.5)*16+16
-                if y+16*self.y < n:
+                n = noise.pnoise2((x+16*X)/20.,app.worldseed+0.5)*16+16
+                if y+16*Y < n:
                     self.blocks[-1].append(0)
-                elif y+16*self.y < n + 5:
+                    if y+16*Y > n-1 and random.randint(1,256)<biome(X).smallTrees:
+                        SmallTree(x+16*X,y+16*Y)
+                    elif y+16*Y > n-1 and random.randint(1,256)<biome(X).flowers:
+                        self.blocks[-1][-1]=random.choice((30,31,32,33))
+                elif y+16*Y < n + 5:
                     self.blocks[-1].append(8820)
                 else:
                     self.blocks[-1].append(1)
@@ -191,6 +235,7 @@ class Player:
         self.slot=0
         self.lastref=time.time()
         self.ctime=time.time()
+        self.mode="mortal"
     
     def __str__(self):
         oppl=[]
@@ -202,6 +247,8 @@ class Player:
                 'y':app.players[usr].y,
                 'f':app.players[usr].facing_left
             })
+        if time.time()-self.ctime<0.03: foo=0
+        else: foo=(time.time()-self.ctime)/btime(blockAt(*self.cur),geti(self.inv,self.slot,(0,0,{})),self)
         return json.dumps({
             'x':self.x,
             'y':self.y,
@@ -210,7 +257,7 @@ class Player:
             'dch':self.dirtyChunks,
             'inv':self.inv,
             'slot':self.slot,
-            'a':(time.time()-self.ctime)/btime(blockAt(*self.cur),geti(self.inv,self.slot,(0,0,{})))
+            'a':foo
         })
     
     def calcwalkspeed(self):
@@ -264,7 +311,7 @@ class Player:
             self.slot=9
         if '1' in self.keys:
             if (self.cur[0]-self.x)*(self.cur[0]-self.x)+(self.cur[1]-self.y)*(self.cur[1]-self.y) < 80:
-                if solid(*self.cur)and time.time()-self.ctime>btime(blockAt(*self.cur),geti(self.inv,self.slot,(0,0,{}))):
+                if time.time()-self.ctime>btime(blockAt(*self.cur), geti(self.inv,self.slot,(0,0,{})),self):
                     setBlock(*(self.cur+(0,)))
         else: self.ctime = time.time()
         if solid(self.x-0.5,self.y-0.9) or solid(self.x-0.5,self.y+0.9) or solid(self.x-0.5,self.y):
@@ -304,6 +351,13 @@ def tick():
         if time.time()-player.lastref>CONNECTION_TIMEOUT:
             print("User {} left. Reason: Connection timed out.".format(app.actvplrs[i]))
             del app.actvplrs[i]
+            i-=1
+        i+=1
+    for ent in app.entities: ent.tick(rt)
+    i=0
+    while i < len(app.entities):
+        if app.entities[i].die:
+            del app.entities[i]
             i-=1
         i+=1
 
