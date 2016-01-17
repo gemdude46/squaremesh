@@ -10,6 +10,8 @@ mpos = (0,0)
 
 importerr=False
 
+topen=False
+
 slot = 0
 
 try:
@@ -98,6 +100,7 @@ def loadifnot(x,y):
         u.close()
 
 kbtxt = u""
+lastunicode = u" "
 
 selbox = 0;
 
@@ -147,6 +150,7 @@ while True:
                     kbtxt = kbtxt[:-1]
             elif len(kbtxt) < 127:
                 kbtxt += event.unicode
+            lastunicode=event.unicode
         if event.type == pygame.MOUSEMOTION:
             mpos = event.pos
         clicked = False
@@ -294,5 +298,7 @@ while True:
             if i == slot:
                 pygame.draw.rect(screen,(255,255,255),(screen.get_width()/2-198+i*40,screen.get_height()-45,36,5))
         
+        if topen:
+            pygame.draw.rect(screen,(0,0,0),(50,50,200,50))
     
     pygame.display.flip()

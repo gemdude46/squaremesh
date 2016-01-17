@@ -106,9 +106,24 @@ class Entity:
 
 class SmallTree(Entity):
     def tick(self,rt):
-        h=random.randint(6,9)
-        for i in range(h): setBlock(self.x,self.y-i,10)
+        if blockAt(self.x,self.y) == 0:
+            h=random.randint(6,9)
+            for i in range(h):
+                setBlock(self.x,self.y-i,10)
+            setBlock(self.x,self.y-h,11)
         self.die=True
+        
+                
+class BigTree(Entity):
+    def tick(self,rt):
+        h=random.randint(25,80)
+        w=random.randint(2,4)
+        for i in range(h):
+            for j in range(w):
+                if blockAt(self.x+j,self.y-i) not in (8820,1,2):
+                    setBlock(self.x+j,self.y-i,10)
+        self.die=True
+
 
 class Chunk:
     def __init__(self,X,Y):
@@ -124,6 +139,8 @@ class Chunk:
                 n = noise.pnoise2((x+16*X)/20.,app.worldseed+0.5)*16+16
                 if y+16*Y < n:
                     self.blocks[-1].append(0)
+                    if y+16*Y > n-1 and random.randint(1,256)<biome(X).bigTrees:
+                        BigTree(x+16*X,y+16*Y+5)
                     if y+16*Y > n-1 and random.randint(1,256)<biome(X).smallTrees:
                         SmallTree(x+16*X,y+16*Y)
                     elif y+16*Y > n-1 and random.randint(1,256)<biome(X).flowers:
